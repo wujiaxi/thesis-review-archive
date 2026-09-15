@@ -85,7 +85,10 @@ export function renderMarkdown(md, opts = {}) {
     if (cm) {
       para(buf); buf = [];
       const code = cm[2];
-      out.push(`<figure data-block style="margin:22px 0 26px"><image-slot id="${key}-${cm[1]}-${code}" style="width:100%;height:clamp(240px,34vw,380px)" shape="rounded" radius="10" placeholder="拖入 ${code} ${cm[1] === 'IMG' ? '图片' : '技术图'}"></image-slot><figcaption style="margin-top:8px;font-family:${T.mono};font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:${T.ink3}">${cm[1]}:${esc(code)}</figcaption></figure>`);
+      // 有真图就出 <img>(assets/<期号>/<CHART|IMG>-<代码>.png);取不到再退回可拖放的占位框。
+      // 这样存档站显示技术图,而本地工程仍能拖图补历史期。
+      const src = `assets/${key}/${cm[1]}-${encodeURIComponent(code)}.png`;
+      out.push(`<figure data-block style="margin:22px 0 26px"><img src="${src}" alt="${esc(code)} ${cm[1] === 'IMG' ? '图片' : '技术图'}" loading="lazy" style="width:100%;border:1px solid ${T.rule};border-radius:10px;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display=''"><image-slot id="${key}-${cm[1]}-${code}" style="width:100%;height:clamp(240px,34vw,380px);display:none" shape="rounded" radius="10" placeholder="\u62d6\u5165 ${code} ${cm[1] === 'IMG' ? '\u56fe\u7247' : '\u6280\u672f\u56fe'}"></image-slot><figcaption style="margin-top:8px;font-family:${T.mono};font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:${T.ink3}">${cm[1]}:${esc(code)}</figcaption></figure>`);
       continue;
     }
 
