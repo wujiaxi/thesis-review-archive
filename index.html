@@ -92,7 +92,7 @@
           <p style="font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:#8b8478;margin:0 0 12px">目录</p>
           <nav style="display:flex;flex-direction:column;gap:2px">
             <sc-for list="{{ toc }}" as="t" hint-placeholder-count="10">
-              <a href="{{ t.href }}" style="padding:4px 0 4px {{ t.pad }}px;font-size:.84rem;line-height:1.5;color:#57524a;text-decoration:none;border-left:2px solid transparent">{{ t.text }}</a>
+              <a href="{{ t.href }}" onClick="{{ t.jump }}" style="padding:4px 0 4px {{ t.pad }}px;font-size:.84rem;line-height:1.5;color:#57524a;text-decoration:none;border-left:2px solid transparent">{{ t.text }}</a>
             </sc-for>
           </nav>
         </aside>
@@ -126,7 +126,7 @@
         <nav style="position:fixed;right:0;top:0;bottom:0;z-index:61;width:min(78vw,300px);background:#ffffff;border-left:1px solid #e5dfd3;padding:24px 20px;overflow:auto;display:flex;flex-direction:column;gap:3px">
           <p style="font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:#8b8478;margin:0 0 12px">目录</p>
           <sc-for list="{{ toc }}" as="t" hint-placeholder-count="10">
-            <a href="{{ t.href }}" onClick="{{ toggleToc }}" style="padding:7px 0 7px {{ t.pad }}px;font-size:.9rem;color:#57524a;text-decoration:none">{{ t.text }}</a>
+            <a href="{{ t.href }}" onClick="{{ t.jump }}" style="padding:7px 0 7px {{ t.pad }}px;font-size:.9rem;color:#57524a;text-decoration:none">{{ t.text }}</a>
           </sc-for>
         </nav>
       </sc-if>
@@ -141,7 +141,11 @@ class Component extends DCLogic {
 
   async componentDidMount() {
     this.onHash = () => {
-      const h = (location.hash || '').replace(/^#\/?/, '').trim();
+      const raw = location.hash || '';
+      // 只有 `#/...` 才是期号路由。目录锚点是 `#h3-6` 这种,过去会被当成期号
+      // 去取 issues/h3-6.md → 404 → 整页变成「读不到」。交给浏览器自己滚。
+      if (raw && raw.charAt(1) !== '/') return;
+      const h = raw.replace(/^#\/?/, '').trim();
       this.setState({ route: h, tocOpen: false });
       if (h) this.loadIssue(h); else this.setState({ html: '', toc: [] });
       window.scrollTo(0, 0);
@@ -269,7 +273,17 @@ class Component extends DCLogic {
         blurb: (i.highlights && i.highlights[0]) || i.source || ''
       })),
       hasOlder: issues.length > 1,
-      toc: this.state.toc.map(t => ({ ...t, href: '#' + t.id, pad: t.pad })),
+      toc: this.state.toc.map(t => ({
+        ...t, href: '#' + t.id, pad: t.pad,
+        // 拦截点击自己滚,不改 hash —— URL 继续留在 `#/YYYY-MM-DD`,刷新和转发都还在当期
+        jump: (e) => {
+          const el = document.getElementById(t.id);
+          if (!el) return;
+          e.preventDefault();
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          this.setState({ tocOpen: false });
+        }
+      })),
       showAside: inIssue && !narrow && this.props.showToc !== false,
       showTocButton: inIssue && narrow && this.state.toc.length > 0,
       tocPanelOpen: this.state.tocOpen,
